@@ -1,0 +1,46 @@
+pipeline {
+    agent any
+    stages {
+        stage('Checkout') {
+            steps {
+                script {
+                    checkout([$class: 'GitSCM', branches: [[name: '*/main']], userRemoteConfigs: [[url: 'https://github.com/archanapatilbeniki/mavenjob.git']]])
+                }
+            }
+        }
+        stage('Build') {
+            steps {
+                script {
+                    def mvnHome = tool 'maven-3.8.4'
+                    sh "${mvnHome}/bin/mvn clean install"
+                }
+            }
+        }
+        stage('Test') {
+            steps {
+                script {
+                    def mvnHome = tool 'maven-3.8.4'
+                    sh "${mvnHome}/bin/mvn test"
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                script {
+                    
+                    sshagent(['ssh-jenkins']) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null roopa-j@192.168.1.2 "cd /home/roopa-1/Documents/mvn-1/ && java -jar HelloWorld.jar"
+                        """
+                    }
+                }
+            }
+        }
+    }
+       
+    post {
+        always {
+            emailext body: "Build ${currentBuild.result}: ${env.BUILD_URL}", subject: "Build Notification", to: "rooparchana.patil@gmail.com"
+        }
+    }
+}
